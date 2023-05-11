@@ -1,6 +1,7 @@
 #include <Windows.h>
 #include <iostream>
 #include <fstream>
+#include <stdlib.h>
 #define SWAP(a, b) int temp = a; a = b; b = temp;
 
 using namespace std;
@@ -32,6 +33,7 @@ int main(void)
     }
 
 	int TCNT, NUM_ELEM;
+	LARGE_INTEGER beg, end, freq;
 	input >> TCNT >> NUM_ELEM;
 	int* Array = new int[NUM_ELEM];
 
@@ -40,7 +42,10 @@ int main(void)
 		input >> Array[i];
 	}
 
+	QueryPerformanceFrequency(&freq);
+	QueryPerformanceCounter(&beg);
 	quicksort(Array, 0, NUM_ELEM - 1);
+	QueryPerformanceCounter(&end);
 
 	output << TCNT << endl << NUM_ELEM << endl;
 	
@@ -48,6 +53,9 @@ int main(void)
 	{
 		output << Array[i] << " ";
 	}
+
+	double diff = ((double)(end.QuadPart - beg.QuadPart) / freq.QuadPart) * 1000;
+	time_thread << diff << endl;
 
     return 0;
 }
