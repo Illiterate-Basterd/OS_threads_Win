@@ -42,6 +42,13 @@ int main(void)
 
 	quicksort(Array, 0, NUM_ELEM - 1);
 
+	output << TCNT << endl << NUM_ELEM << endl;
+	
+	for (size_t i = 0; i < NUM_ELEM; i++)
+	{
+		output << Array[i] << " ";
+	}
+
     return 0;
 }
 
