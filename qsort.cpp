@@ -39,8 +39,8 @@ int main(void)
 	{
 		input >> Array[i];
 	}
-	
 
+	quicksort(Array, 0, NUM_ELEM - 1);
 
     return 0;
 }
