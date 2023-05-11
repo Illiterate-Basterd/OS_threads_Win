@@ -56,6 +56,7 @@ int main(void)
 
 	double diff = ((double)(end.QuadPart - beg.QuadPart) / freq.QuadPart) * 1000;
 	time_thread << diff << endl;
+	
     return 0;
 }
 
