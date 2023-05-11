@@ -3,11 +3,17 @@
 #include <fstream>
 #include <stdlib.h>
 #define SWAP(a, b) int temp = a; a = b; b = temp;
+#define MAX(a, b) a > b ? a : b
+#define MIN(a, b) a < b ? a : b
 
 using namespace std;
 
 void quicksort(int *Arr, int first, int last);
 DWORD WINAPI thread_entry(void* param);
+
+HANDLE hMutex;
+int* Array;
+int TCNT, NUM_ELEM;
 
 int main(void)
 {
@@ -32,20 +38,33 @@ int main(void)
         return -1;
     }
 
-	int TCNT, NUM_ELEM;
 	LARGE_INTEGER beg, end, freq;
 	input >> TCNT >> NUM_ELEM;
-	int* Array = new int[NUM_ELEM];
+	Array = new int[NUM_ELEM];
+	HANDLE* threads = new HANDLE[TCNT];
 
 	for (size_t i = 0; i < NUM_ELEM; i++)
 	{
 		input >> Array[i];
 	}
 
+	hMutex = CreateMutex(NULL, FALSE, NULL);
+
 	QueryPerformanceFrequency(&freq);
 	QueryPerformanceCounter(&beg);
+	for(int i = 0; i < TCNT; i++)
+	{
+		threads[i] = CreateThread(0, 0, thread_entry, (void*)((char*)0 + i), 0, 0);
+	}
 	quicksort(Array, 0, NUM_ELEM - 1);
 	QueryPerformanceCounter(&end);
+
+	CloseHandle(hMutex);
+	for(int i = 0; i < TCNT; i++)
+	{
+		CloseHandle(threads[i]);
+	}
+	
 
 	output << TCNT << endl << NUM_ELEM << endl;
 	
@@ -55,8 +74,8 @@ int main(void)
 	}
 
 	double diff = ((double)(end.QuadPart - beg.QuadPart) / freq.QuadPart) * 1000;
-	time_thread << diff << endl;
-	
+	time_thread << (int)diff << endl;
+
     return 0;
 }
 
@@ -86,5 +105,27 @@ void quicksort(int *Arr, int first, int last)
 		SWAP(Arr[pivot], Arr[j]);
 		quicksort(Arr, first, j - 1);
 		quicksort(Arr, j + 1, last);
+	}
+}
+
+DWORD WINAPI thread_entry(void* param)
+{
+	if(TCNT == 1 || NUM_ELEM <= 1000)
+	{
+		quicksort(Array, 0, NUM_ELEM - 1);
+	}
+	
+	else
+	{
+		int idx = (char*)param - (char*)0;
+		int div1 = NUM_ELEM % (idx + 7), div2 = NUM_ELEM % (idx + 4);
+		int arg1, arg2;
+
+		arg1 = NUM_ELEM / div1;
+		arg2 = NUM_ELEM / div2;
+
+		WaitForSingleObject(hMutex, INFINITE);
+		quicksort(Array, MIN(arg1, arg2), MAX(arg1, arg2));
+		ReleaseMutex(hMutex);
 	}
 }
