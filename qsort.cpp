@@ -38,7 +38,7 @@ int main(void)
         return -1;
     }
 
-	LARGE_INTEGER beg, end, freq;
+	size_t beg, end;
 	input >> TCNT >> NUM_ELEM;
 	Array = new int[NUM_ELEM];
 	HANDLE* threads = new HANDLE[TCNT];
@@ -50,14 +50,13 @@ int main(void)
 
 	hMutex = CreateMutex(NULL, FALSE, NULL);
 
-	QueryPerformanceFrequency(&freq);
-	QueryPerformanceCounter(&beg);
+	beg = GetTickCount64();
 	for(int i = 0; i < TCNT; i++)
 	{
 		threads[i] = CreateThread(0, 0, thread_entry, (void*)((char*)0 + i), 0, 0);
 	}
 	quicksort(Array, 0, NUM_ELEM - 1);
-	QueryPerformanceCounter(&end);
+	end = GetTickCount64();
 
 	CloseHandle(hMutex);
 	for(int i = 0; i < TCNT; i++)
@@ -73,8 +72,7 @@ int main(void)
 		output << Array[i] << " ";
 	}
 
-	double diff = ((double)(end.QuadPart - beg.QuadPart) / freq.QuadPart) * 1000;
-	time_thread << (int)diff << endl;
+	time_thread << end - beg << endl;
 
     return 0;
 }
