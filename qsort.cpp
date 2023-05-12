@@ -116,11 +116,10 @@ DWORD WINAPI thread_entry(void* param)
 	else
 	{
 		int idx = (char*)param - (char*)0;
-		int div1 = NUM_ELEM % (idx + 7), div2 = NUM_ELEM % (idx + 4);
-		int arg1, arg2;
+		int sub1 = TCNT - idx;
+		int sub2 = NUM_ELEM % TCNT;
 
-		arg1 = NUM_ELEM / div1;
-		arg2 = NUM_ELEM / div2;
+		int arg1 = NUM_ELEM / sub1, arg2 = NUM_ELEM / sub2;
 
 		WaitForSingleObject(hMutex, INFINITE);
 		quicksort(Array, MIN(arg1, arg2), MAX(arg1, arg2));
