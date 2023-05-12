@@ -110,18 +110,20 @@ DWORD WINAPI thread_entry(void* param)
 {
 	if(TCNT == 1 || NUM_ELEM <= 1000)
 	{
+		WaitForSingleObject(hMutex, INFINITE);
 		quicksort(Array, 0, NUM_ELEM - 1);
+		ReleaseMutex(hMutex);
 	}
 	
 	else
 	{
+		WaitForSingleObject(hMutex, INFINITE);
 		int idx = (char*)param - (char*)0;
 		int sub1 = TCNT - idx;
 		int sub2 = NUM_ELEM % TCNT;
 
 		int arg1 = NUM_ELEM / sub1, arg2 = NUM_ELEM / sub2;
 
-		WaitForSingleObject(hMutex, INFINITE);
 		quicksort(Array, MIN(arg1, arg2), MAX(arg1, arg2));
 		ReleaseMutex(hMutex);
 	}
