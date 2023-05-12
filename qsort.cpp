@@ -13,7 +13,7 @@ DWORD WINAPI thread_entry(void* param);
 
 HANDLE hMutex;
 int* Array;
-int TCNT, NUM_ELEM;
+int TCNT, NUM_ELEM, TCNT_C;
 
 int main(void)
 {
@@ -42,6 +42,7 @@ int main(void)
 	input >> TCNT >> NUM_ELEM;
 	Array = new int[NUM_ELEM];
 	HANDLE* threads = new HANDLE[TCNT];
+	TCNT_C = NUM_ELEM / TCNT;
 
 	for (size_t i = 0; i < NUM_ELEM; i++)
 	{
@@ -119,10 +120,8 @@ DWORD WINAPI thread_entry(void* param)
 	{
 		WaitForSingleObject(hMutex, INFINITE);
 		int idx = (char*)param - (char*)0;
-		int sub1 = TCNT - idx;
-		int sub2 = NUM_ELEM % TCNT;
-
-		int arg1 = NUM_ELEM / sub1, arg2 = NUM_ELEM / sub2;
+		int arg1 = TCNT_C * idx;
+		int arg2 = arg1 + TCNT_C;
 
 		quicksort(Array, MIN(arg1, arg2), MAX(arg1, arg2));
 		ReleaseMutex(hMutex);
