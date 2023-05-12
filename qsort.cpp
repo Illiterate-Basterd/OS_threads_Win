@@ -55,7 +55,6 @@ int main(void)
 	{
 		threads[i] = CreateThread(0, 0, thread_entry, (void*)((char*)0 + i), 0, 0);
 	}
-	quicksort(Array, 0, NUM_ELEM - 1);
 	end = GetTickCount64();
 
 	CloseHandle(hMutex);
@@ -63,6 +62,7 @@ int main(void)
 	{
 		CloseHandle(threads[i]);
 	}
+	quicksort(Array, 0, NUM_ELEM - 1);
 	
 
 	output << TCNT << endl << NUM_ELEM << endl;
