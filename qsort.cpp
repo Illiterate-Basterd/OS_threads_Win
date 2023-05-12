@@ -126,4 +126,5 @@ DWORD WINAPI thread_entry(void* param)
 		quicksort(Array, MIN(arg1, arg2), MAX(arg1, arg2));
 		ReleaseMutex(hMutex);
 	}
+	return 0;
 }
