@@ -111,11 +111,15 @@ DWORD WINAPI thread_entry(void *param)
     }
 
     if (++eaten < PHIL_COUNT - 1)
+    {
         WaitForSingleObject(event, INFINITE);
+        return 0;
+    }
     else
+    {
         SetEvent(event);
-
-    return 0;
+        return 0;
+    }
 }
 
 void print_info(DWORD start_eat_time, int ph_id)
@@ -153,6 +157,7 @@ bool eating(PHIL *ph_l, PHIL *ph_r, int ph_id)
     if (GetTickCount() - starting_time > time_total)
     {
         SetEvent(phils[ph_id - 1].phil_event);
+        delete[] evs;
         return true;
     }
 
@@ -161,5 +166,6 @@ bool eating(PHIL *ph_l, PHIL *ph_r, int ph_id)
 
     SetEvent(phils[ph_id - 1].phil_event);
     Sleep(time_phil - time_phil / 100);
+    delete[] evs;
     return false;
 }
