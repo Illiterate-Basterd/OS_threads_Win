@@ -1,149 +1,165 @@
-#include <iostream>
-#include <fstream>
-#include <queue>
+#define PHIL_COUNT 5
 #include <Windows.h>
-#define PHILCNT 5
-#define TCNT 5
+#include <stdlib.h>
+#include <iostream>
+
+typedef struct ph
+{
+    short id;
+    ph *phil_left;
+    ph *phil_right;
+    HANDLE phil_event;
+} PHIL;
 
 using namespace std;
 
-enum state
-{
-    Thinking,
-    Eating
-};
+PHIL phils[PHIL_COUNT];
+HANDLE threads[PHIL_COUNT];
+HANDLE sema, sema_1, event;
+DWORD starting_time;
+int time_total, time_phil, eaten;
+double elapsed = 0;
 LARGE_INTEGER beg, fin, freq;
-CRITICAL_SECTION cs;
-volatile double elapsed = 0;
-int TOTAL, PHIL;
-HANDLE sema;
 
-struct philos
+void init(void);
+DWORD WINAPI thread_entry(void *param);
+bool eating(PHIL *ph_l, PHIL *ph_r, int ph_id);
+
+int main(int argc, char* argv[])
 {
-    unsigned short num;
-    state State;
-    unsigned short adjacent[2];
-};
+    QueryPerformanceFrequency(&freq);
+    QueryPerformanceCounter(&beg);
 
-philos Philosophers[PHILCNT];
-queue<philos> phils;
-
-DWORD WINAPI Phil_threads(void *param)
-{
-    int idx = (char *)param - (char *)0;
-    phils.push(Philosophers[idx]);
-    philos Current_phil;
-
-    while (elapsed <= TOTAL)
+    QueryPerformanceCounter(&fin);
+    elapsed += (double)(fin.QuadPart - beg.QuadPart) / freq.QuadPart * 1000;
+    starting_time = GetTickCount();
+    if (argc != 3)
     {
-        WaitForSingleObject(sema, INFINITE);
-        QueryPerformanceCounter(&beg);
+        cerr << "Wrong amount of args!" << endl;
+        return -1;
+    }
 
-        EnterCriticalSection(&cs);
-        Current_phil = phils.front();
+    time_total = atoi(argv[1]);
+    time_phil = atoi(argv[2]);
+    init();
 
-        if (Philosophers[Current_phil.adjacent[0] - 1].State != Eating && Philosophers[Current_phil.adjacent[1]].State != Eating)
-        {
-            QueryPerformanceCounter(&fin);
-            elapsed += (double)(fin.QuadPart - beg.QuadPart) / freq.QuadPart * 1000;
+    event = CreateEvent(NULL, TRUE, FALSE, NULL);
+    sema = CreateSemaphore(0, 1, 1, 0);
+    sema_1 = CreateSemaphore(0, 1, 1, 0);
+    for(int i = 0; i < PHIL_COUNT; i++)
+        phils[i].phil_event = CreateEvent(NULL, TRUE, TRUE, NULL);
+    
 
-            if (elapsed <= TOTAL)
-            {
-                QueryPerformanceCounter(&beg);
+    for(int i = 0; i < PHIL_COUNT; i++)
+    {
+        threads[i] = CreateThread(0, 0, thread_entry, (void *)((char *)0 + i), 0, 0);
+    }
 
-                Current_phil.State = Eating;
-                phils.pop();
+    WaitForMultipleObjects(PHIL_COUNT, threads, TRUE, INFINITE);
 
-                QueryPerformanceCounter(&fin);
-                elapsed += (double)(fin.QuadPart - beg.QuadPart) / freq.QuadPart * 1000;
-                cout << (int)elapsed << ":" << idx + 1 << ":T->E" << endl;
-
-                QueryPerformanceCounter(&beg);
-                LeaveCriticalSection(&cs);
-
-                Sleep(PHIL);
-
-                EnterCriticalSection(&cs);
-                Current_phil.State = Thinking;
-                phils.push(Current_phil);
-                QueryPerformanceCounter(&fin);
-
-                elapsed += (double)(fin.QuadPart - beg.QuadPart) / freq.QuadPart * 1000;
-                cout << (int)elapsed << ":" << idx + 1 << ":E->T" << endl;
-                LeaveCriticalSection(&cs);
-            }
-
-            else
-                LeaveCriticalSection(&cs);
-        }
-
-        else
-        {
-            LeaveCriticalSection(&cs);
-        }
-
-        ReleaseSemaphore(sema, 1, NULL);
+    CloseHandle(event);
+    CloseHandle(sema_1);
+    CloseHandle(sema);
+    for(int i = 0; i < PHIL_COUNT; i++)
+    {
+        CloseHandle(phils[i].phil_event);
+        CloseHandle(threads[i]);
     }
 
     return 0;
 }
 
-int main(int argc, char* argv[])
+void init(void)
 {
-    TOTAL = atoi(argv[1]);
-    PHIL = atoi(argv[2]);
-
-    for (unsigned short i = 0; i < PHILCNT; i++)
+    for(int i = 0; i < PHIL_COUNT; i++)
     {
-        unsigned short t = i + 1;
-        Philosophers[i].num = t;
-        Philosophers[i].State = Thinking;
-
-        if (t == 1)
+        if (i == 0)
         {
-            Philosophers[i].adjacent[0] = t + 1;
-            Philosophers[i].adjacent[1] = 5;
+            phils[i].id = 1;
+            phils[i].phil_left = &phils[PHIL_COUNT - 1];
+            phils[i].phil_right = &phils[1];
         }
 
-        else if (t == 5)
+        else if (i == 4)
         {
-            Philosophers[i].adjacent[0] = t - 1;
-            Philosophers[i].adjacent[1] = 1;
+            phils[i].id = PHIL_COUNT;
+            phils[i].phil_left = &phils[i - 1];
+            phils[i].phil_right = &phils[0];
         }
 
         else
         {
-            Philosophers[i].adjacent[0] = t - 1;
-            Philosophers[i].adjacent[1] = t + 1;
+        phils[i].id = i + 1;
+        phils[i].phil_left = &phils[i - 1];
+        phils[i].phil_right = &phils[i + 1];
         }
     }
+    eaten = 0;
+}
 
-    HANDLE threads[TCNT];
-    sema = CreateSemaphore(0, 2, 2, 0);
-    TOTAL -= TOTAL / 100;
-    InitializeCriticalSection(&cs);
-    QueryPerformanceFrequency(&freq);
+DWORD WINAPI thread_entry(void *param)
+{
+    int idx = (char *)param - (char *)0;
+    QueryPerformanceCounter(&fin);
+    elapsed += (double)(fin.QuadPart - beg.QuadPart) / freq.QuadPart * 1000;
 
-    for (unsigned short i = 0; i < TCNT; i++)
+    while (GetTickCount() - starting_time < time_total)
     {
-        threads[i] = CreateThread(0, 0, Phil_threads, (void *)((char *)0 + i), 0, 0);
-    }
 
-    while (true)
-    {
-        if (WAIT_TIMEOUT == WaitForMultipleObjects(TCNT, threads, TRUE, 50))
-            continue;
-        else
-        {
+        if(eating(phils[idx].phil_left, phils[idx].phil_right, phils[idx].id))
             break;
-        }
     }
 
-    DeleteCriticalSection(&cs);
-    for (int i = 0; i < TCNT; i++)
-    {
-        CloseHandle(threads[i]);
-    }
+    if (++eaten < PHIL_COUNT - 1)
+        WaitForSingleObject(event, INFINITE);
+    else
+        SetEvent(event);
 
     return 0;
+}
+
+void print_info(DWORD start_eat_time, int ph_id)
+{
+    WaitForSingleObject(sema, INFINITE);
+    QueryPerformanceCounter(&fin);
+    elapsed += (double)(fin.QuadPart - beg.QuadPart) / freq.QuadPart * 1000;
+    cout << start_eat_time - starting_time << ":" <<  ph_id << ":T->E" << endl;
+    ReleaseSemaphore(sema, 1, NULL);
+    Sleep(time_phil);
+    WaitForSingleObject(sema, INFINITE);
+
+    cout << time_phil + start_eat_time - starting_time << ":" <<  ph_id << ":E->T" << endl;
+    ReleaseSemaphore(sema, 1, NULL);
+}
+
+bool eating(PHIL *ph_l, PHIL *ph_r, int ph_id)
+{
+    DWORD start_eat_time;
+    volatile HANDLE* evs = new HANDLE[2];
+    WaitForSingleObject(sema_1, INFINITE);
+    evs[0] = ph_l->phil_event;
+    evs[1] = ph_r->phil_event;
+    ReleaseSemaphore(sema_1, 1, NULL);
+
+    WaitForMultipleObjects(2, (HANDLE *)evs, true, INFINITE);
+    WaitForSingleObject(sema_1, INFINITE);
+    ResetEvent(phils[ph_id - 1].phil_event);
+    ReleaseSemaphore(sema_1, 1, NULL);
+
+    QueryPerformanceCounter(&fin);
+    elapsed += (double)(fin.QuadPart - beg.QuadPart) / freq.QuadPart * 1000;
+    start_eat_time = GetTickCount();
+
+    if (GetTickCount() - starting_time > time_total)
+    {
+        SetEvent(phils[ph_id - 1].phil_event);
+        return true;
+    }
+
+    else if (GetTickCount() - starting_time < time_total)
+    print_info(start_eat_time, ph_id);
+
+    SetEvent(phils[ph_id - 1].phil_event);
+    Sleep(time_phil - time_phil / 100);
+    return false;
 }
